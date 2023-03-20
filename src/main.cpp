@@ -4,11 +4,13 @@
 #include <Arduino.h>
 
 #define MOTOR_PIN 9
+#define BREAK_PIN 8
 
 #define DEBUG 1
 #define IS_UNO 1
 
 MPU6050 mpu;
+boolean isBreaking = false;
 
 #if IS_UNO
 // Eine Funktion, um stdout auf die serielle Schnittstelle umzuleiten
@@ -53,6 +55,7 @@ void setup() {
   mpu.calibrate();
   
   pinMode(MOTOR_PIN, OUTPUT); // Motorsteuerung
+  pinMode(BREAK_PIN, OUTPUT);
 }
 
 void loop() {
@@ -61,6 +64,15 @@ void loop() {
   attitude_t attitude = mpu.getAttitude(UNITS_DEGREES);
 
   long motorSpeed = (long)attitude.roll > -20 ? -1 : max(min(map((long)attitude.roll, -60, -45, 0, 255), 255), 0); // Motor  speed 0-255 zwischen -60 und -10 Grad
+  analogWrite(MOTOR_PIN, motorSpeed); // Motorsteuerung an Pin 9
+  if(motorSpeed >= 0) {
+    isBreaking = false;
+    digitalWrite(BREAK_PIN, LOW);
+  } else {
+    isBreaking = true;
+    digitalWrite(BREAK_PIN, HIGH);
+  }
+
   #if DEBUG
   Serial.print(attitude.pitch);
   Serial.print(" ");
@@ -71,11 +83,11 @@ void loop() {
   Serial.print(motorSpeed);
   Serial.print(" ");
   Serial.print(motorSpeed > 0 ? "AN" : "AUS");
+  Serial.print(" ");
+  Serial.print(isBreaking ? "BREMSEN" : "FREI");
   Serial.println();
   // printf("x: %4d, y: %4d, z: %4d \n", gyro.x, gyro.y, gyro.z);
   #endif
-
-
-  // analogWrite(MOTOR_PIN, motorSpeed); // Motorsteuerung an Pin 9
+  
   delay(50);
 }
